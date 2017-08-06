@@ -10,7 +10,7 @@ SCREEN_Y = 126
 SCREEN_X = 295
 SPEED = 10
 ROTATION = pi/8
-FRAMERATE = 0.2
+FRAMERATE = 0.1
 
 
 class DONE(BaseException):
@@ -18,15 +18,10 @@ class DONE(BaseException):
 
 class Game:
     def __init__(self):
-
-
-        self.surface = 0
-
-        self.options = ["4D flat torus","flat Klein bottle"]
-
         self.x = 30
         self.y = 30
         self.r = 0
+        self.wrapper = Wrapper()
 
         ugfx.init()
         ugfx.input_init()
@@ -34,6 +29,7 @@ class Game:
         self.select_surface()
 
         self.main_loop()
+
 
 
     def main_loop(self):
@@ -47,7 +43,7 @@ class Game:
             self.x += SPEED*cos(self.r)
             self.y += SPEED*sin(self.r)
 
-            self.wrap()
+            self.x,self.y,self.r = self.wrapper.wrap(self.x,self.y,self.r)
 
             self.draw_ship()
             time.sleep(FRAMERATE)
@@ -63,7 +59,7 @@ class Game:
         x2_ = self.x+(x2-self.x)*cos(self.r) - (y2-self.y)*sin(self.r)
         y2_ = self.y+(y2-self.y)*cos(self.r) + (x2-self.x)*sin(self.r)
 
-        line = Line(x1_, y1_, x2_, y2_)
+        line = Line(x1_, y1_, x2_, y2_, self.wrapper)
 
         while line.goes_out():
             line.split()
@@ -73,8 +69,14 @@ class Game:
     def draw_ship(self):
         ugfx.clear(ugfx.WHITE)
 
-        ugfx.string(10, SCREEN_Y-15, "You are playing on a "+self.options[self.surface],
+        ugfx.string(10, SCREEN_Y-15, "You are playing on a "+self.wrapper.name(),
                         "RobotoRegular12", ugfx.BLACK)
+        #ugfx.string(10, SCREEN_Y-28, "r: "+str(self.r),
+        #                "RobotoRegular12", ugfx.BLACK)
+        #ugfx.string(10, SCREEN_Y-41, "y: "+str(self.y),
+        #                "RobotoRegular12", ugfx.BLACK)
+        #ugfx.string(10, SCREEN_Y-54, "x: "+str(self.x),
+        #                "RobotoRegular12", ugfx.BLACK)
 
         self.draw_line(self.x+4, self.y, self.x-6, self.y-5)
         self.draw_line(self.x+4, self.y, self.x-6, self.y+5)
@@ -98,14 +100,12 @@ class Game:
 
     def next(self, press):
         if press:
-            self.surface += 1
-            self.surface %= len(self.options)
+            self.wrapper.next()
             self.show_choice()
 
     def prev(self, press):
         if press:
-            self.surface -= 1
-            self.surface %= len(self.options)
+            self.wrapper.prev()
             self.show_choice()
 
     def pass_(self, press):
@@ -113,7 +113,7 @@ class Game:
 
     def show_choice(self):
         ugfx.clear(ugfx.WHITE)
-        ugfx.string(10, 10, self.options[self.surface], "PermanentMarker22", ugfx.BLACK)
+        ugfx.string(10, 10, self.wrapper.name(), "PermanentMarker22", ugfx.BLACK)
         ugfx.string(10, 40, "Press up/down to choose a surface.", "Roboto_Regular12", ugfx.BLACK)
         ugfx.string(10, 55, "Press A/B/START to begin.", "Roboto_Regular12", ugfx.BLACK)
         ugfx.flush()
@@ -134,36 +134,58 @@ class Game:
         ugfx.input_attach(ugfx.BTN_A, self.pass_)
         ugfx.input_attach(ugfx.BTN_B, self.pass_)
 
-    def wrap(self):
+
+class Wrapper:
+    def __init__(self):
+        self.surface = 0
+        self.options = ["4D flat torus","flat Klein bottle"]
+
+    def prev(self):
+        self.surface -= 1
+        self.surface %= len(self.options)
+
+    def next(self):
+        self.surface += 1
+        self.surface %= len(self.options)
+
+    def name(self):
+        return self.options[self.surface]
+
+    def wrap(self, x, y, r):
         if self.surface == 0: # 4D flat torus
-            if self.y < 0:
-                self.y += SCREEN_Y
-            if self.y > SCREEN_Y:
-                self.y -= SCREEN_Y
-            if self.x < 0:
-                self.x += SCREEN_X
-            if self.x > SCREEN_X:
-                self.x -= SCREEN_X
+            if y < 0:
+                y += SCREEN_Y
+            if y > SCREEN_Y:
+                y -= SCREEN_Y
+            if x < 0:
+                x += SCREEN_X
+            if x > SCREEN_X:
+                x -= SCREEN_X
 
         if self.surface == 1: # ?D flat Klein bottle
-            if self.y < 0:
-                self.y += SCREEN_Y
-                self.x = SCREEN_X - self.x
-                self.r = pi - self.r
-            if self.y > SCREEN_Y:
-                self.y -= SCREEN_Y
-                self.x = SCREEN_X - self.x
-                self.r = pi - self.r
-            if self.x < 0:
-                self.x += SCREEN_X
-            if self.x > SCREEN_X:
-                self.x -= SCREEN_X
+            if y < 0:
+                y += SCREEN_Y
+                x = SCREEN_X - x
+                r = pi - r
+            if y > SCREEN_Y:
+                y -= SCREEN_Y
+                x = SCREEN_X - x
+                r = pi - r
+            if x < 0:
+                x += SCREEN_X
+            if x > SCREEN_X:
+                x -= SCREEN_X
+
+        r %= 2*pi
+
+        return x, y, r
 
 
 
 class Line:
-    def __init__(self, x1, y1, x2, y2):
-        self.segments = [LineSegment(x1,y1, x2,y2)]
+    def __init__(self, x1, y1, x2, y2, wrapper):
+        self.wrapper = wrapper
+        self.segments = [LineSegment(x1,y1, x2,y2, self.wrapper)]
         self.x1 = x1
         self.x2 = x2
         self.y1 = y1
@@ -172,8 +194,8 @@ class Line:
     def split(self):
         for i,segment in enumerate(self.segments):
             if segment.goes_out():
-                s1,s2 = segment.split()
-                self.segments = self.segments[:i] + [s1,s2] + self.segments[i+1:]
+                new_s = segment.split()
+                self.segments = self.segments[:i] + new_s + self.segments[i+1:]
                 return
 
     def goes_out(self):
@@ -188,20 +210,8 @@ class Line:
 
 
 class LineSegment:
-    def __init__(self, x1, y1, x2, y2):
-        if x1 < 0 and x2 < 0:
-            x1 += SCREEN_X
-            x2 += SCREEN_X
-        if x1 > SCREEN_X and x2 > SCREEN_X:
-            x1 -= SCREEN_X
-            x2 -= SCREEN_X
-        if y1 < 0 and y2 < 0:
-            y1 += SCREEN_Y
-            y2 += SCREEN_Y
-        if y1 > SCREEN_Y and y2 > SCREEN_Y:
-            y1 -= SCREEN_Y
-            y2 -= SCREEN_Y
-
+    def __init__(self, x1, y1, x2, y2, wrapper):
+        self.wrapper = wrapper
 
         self.start = (x1,y1)
         self.end = (x2,y2)
@@ -229,22 +239,50 @@ class LineSegment:
     def split(self):
         for a,b in [(self.start,self.end),(self.end,self.start)]:
             if a[0] < 0:
-                y = a[1] + (b[1]-a[1])*a[0]/(a[0]-b[0])
-                return (LineSegment(a[0]+SCREEN_X,a[1],SCREEN_X,y),
-                        LineSegment(0,y,b[0],b[1]))
+                if b[0] < 0:
+                    x0,y0,r0 = self.wrapper.wrap(a[0],a[1],0)
+                    x1,y1,r1 = self.wrapper.wrap(b[0],b[1],0)
+                    return [LineSegment(x0,y0,x1,y1,self.wrapper)]
+                else:
+                    y = a[1] + (b[1]-a[1])*a[0]/(a[0]-b[0])
+                    x0,y0,r0 = self.wrapper.wrap(a[0],a[1],0)
+                    x1,y1,r1 = self.wrapper.wrap(-0.1,y,0)
+                    return [LineSegment(x0,y0,x1,y1,self.wrapper),
+                            LineSegment(0,y,b[0],b[1],self.wrapper)]
             if a[0] > SCREEN_X:
-                y = a[1] + (b[1]-a[1])*(a[0]-SCREEN_X)/(a[0]-b[0])
-                return (LineSegment(a[0]-SCREEN_X,a[1],0,y),
-                        LineSegment(SCREEN_X,y,b[0],b[1]))
+                if b[0] > SCREEN_X:
+                    x0,y0,r0 = self.wrapper.wrap(a[0],a[1],0)
+                    x1,y1,r1 = self.wrapper.wrap(b[0],b[1],0)
+                    return [LineSegment(x0,y0,x1,y1,self.wrapper)]
+                else:
+                    y = a[1] + (b[1]-a[1])*(a[0]-SCREEN_X)/(a[0]-b[0])
+                    x0,y0,r0 = self.wrapper.wrap(a[0],a[1],0)
+                    x1,y1,r1 = self.wrapper.wrap(SCREEN_X+0.1,y,0)
+                    return [LineSegment(x0,y0,x1,y1,self.wrapper),
+                            LineSegment(SCREEN_X,y,b[0],b[1],self.wrapper)]
 
             if a[1] < 0:
-                x = a[0] + (b[0]-a[0])*a[1]/(a[1]-b[1])
-                return (LineSegment(a[0],a[1]+SCREEN_Y,x,SCREEN_Y),
-                        LineSegment(x,0,b[0],b[1]))
+                if b[1] < 0:
+                    x0,y0,r0 = self.wrapper.wrap(a[0],a[1],0)
+                    x1,y1,r1 = self.wrapper.wrap(b[0],b[1],0)
+                    return [LineSegment(x0,y0,x1,y1,self.wrapper)]
+                else:
+                    x = a[0] + (b[0]-a[0])*a[1]/(a[1]-b[1])
+                    x0,y0,r0 = self.wrapper.wrap(a[0],a[1],0)
+                    x1,y1,r1 = self.wrapper.wrap(x,-0.1,0)
+                    return [LineSegment(x0,y0,x1,y1,self.wrapper),
+                            LineSegment(x,0,b[0],b[1],self.wrapper)]
             if a[1] > SCREEN_Y:
-                x = a[0] + (b[0]-a[0])*(a[1]-SCREEN_Y)/(a[1]-b[1])
-                return (LineSegment(a[0],a[1]-SCREEN_Y,x,0),
-                        LineSegment(x,SCREEN_Y,b[0],b[1]))
+                if b[1] > SCREEN_Y:
+                    x0,y0,r0 = self.wrapper.wrap(a[0],a[1],0)
+                    x1,y1,r1 = self.wrapper.wrap(b[0],b[1],0)
+                    return [LineSegment(x0,y0,x1,y1,self.wrapper)]
+                else:
+                    x = a[0] + (b[0]-a[0])*(a[1]-SCREEN_Y)/(a[1]-b[1])
+                    x0,y0,r0 = self.wrapper.wrap(a[0],a[1],0)
+                    x1,y1,r1 = self.wrapper.wrap(x,SCREEN_Y+0.1,0)
+                    return [LineSegment(x0,y0,x1,y1,self.wrapper,),
+                            LineSegment(x,SCREEN_Y,b[0],b[1],self.wrapper)]
 
     def goes_out(self):
         if self.start[0] < 0 or self.start[0] > SCREEN_X:
