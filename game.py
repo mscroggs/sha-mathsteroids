@@ -21,6 +21,7 @@ class Game:
         self.x = 30
         self.y = 30
         self.r = 0
+        self.size = 1
         self.wrapper = Wrapper()
 
         ugfx.init()
@@ -78,10 +79,10 @@ class Game:
         #ugfx.string(10, SCREEN_Y-54, "x: "+str(self.x),
         #                "RobotoRegular12", ugfx.BLACK)
 
-        self.draw_line(self.x+4, self.y, self.x-6, self.y-5)
-        self.draw_line(self.x+4, self.y, self.x-6, self.y+5)
-        self.draw_line(self.x-3, self.y, self.x-6, self.y-5)
-        self.draw_line(self.x-3, self.y, self.x-6, self.y+5)
+        self.draw_line(self.x+4*self.size, self.y, self.x-6*self.size, self.y-5*self.size)
+        self.draw_line(self.x+4*self.size, self.y, self.x-6*self.size, self.y+5*self.size)
+        self.draw_line(self.x-3*self.size, self.y, self.x-6*self.size, self.y-5*self.size)
+        self.draw_line(self.x-3*self.size, self.y, self.x-6*self.size, self.y+5*self.size)
 
         ugfx.flush()
 
